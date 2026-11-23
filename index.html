@@ -44,6 +44,9 @@ textarea{min-height:110px;resize:vertical}
 .msg.ok{background:var(--green-soft);color:var(--green)}
 .msg.err{background:var(--red-soft);color:var(--red)}
 .muted{color:var(--muted);font-size:14px}
+.ov{position:fixed;inset:0;background:rgba(20,30,50,.45);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+.dlg{background:var(--card);border-radius:18px 18px 0 0;padding:16px;width:100%;max-width:640px;max-height:85vh;overflow:auto}
+.dlg .list{max-height:60vh}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -82,7 +85,8 @@ textarea{min-height:110px;resize:vertical}
 
   <div class="seg"><button class="chip u" data-u="1">דחוף</button><button class="chip on" data-u="0">רגיל</button></div>
 </main>
-<div class="bar"><button class="btn pri" id="save">שמירת המשימה</button></div>
+<div class="bar"><button class="btn pri" id="save">שמירת המשימה</button><button class="btn" id="tofolder">📁 הוספה לתיק</button></div>
+<div id="fl" class="ov" hidden><div class="dlg"><b>לאיזו תיקייה?</b><div class="muted" id="flsub"></div><div class="list" id="fllist"></div><button class="btn" id="flx" style="margin-top:10px">ביטול</button></div></div>
 
 <script>
 /* כתובת ה-API של האפליקציה (Apps Script). המפתח לא כאן: הוא נשמר רק בטלפון. */
@@ -216,6 +220,34 @@ $('#save').onclick = async () => {
     note(/fetch|network/i.test(String(e.message)) ? 'אין חיבור לאינטרנט. המשימה לא נשמרה, אפשר לנסות שוב.' : 'שגיאה: ' + e.message);
   }
 };
+
+/* הוספה לתיק: הקבצים נשמרים בתיקייה שבוחרים, בלי משימה. */
+$('#tofolder').onclick = async () => {
+  if (!files.length) { note('צריך לצרף קובץ או תמונה'); return; }
+  if (!chosen) { note('צריך לבחור לקוח'); return; }
+  if (!KEY) { $('#setup').hidden = false; note('המסך עוד לא מחובר'); return; }
+  $('#fl').hidden = false; $('#flsub').textContent = chosen.name;
+  $('#fllist').innerHTML = '<div class="cl"><span class="muted">טוען תיקיות…</span></div>';
+  try {
+    const r = await api({ op: 'folders', client: chosen.name });
+    $('#fllist').innerHTML = r.folders.map((f, i) => '<div class="cl" data-f="' + i + '"><span>' + (i ? '📂 ' : '📁 ') + esc(f.name) + '</span></div>').join('');
+    document.querySelectorAll('[data-f]').forEach(e => e.onclick = () => toFolder(r.folders[+e.dataset.f]));
+  } catch (e) { $('#fllist').innerHTML = '<div class="cl"><span class="muted">' + esc(e.message) + '</span></div>'; }
+};
+$('#flx').onclick = () => { $('#fl').hidden = true; };
+async function toFolder(f) {
+  $('#fl').hidden = true;
+  const b = $('#tofolder'); b.disabled = true; b.textContent = 'מעלה…';
+  try {
+    const r = await api({ op: 'file', client: chosen.name, folderId: f.id, desc: $('#tx').value.trim(), files: files.map(x => ({ mime: x.mime, data: x.data })) });
+    await clearShared();
+    note('✓ ' + r.files + ' קבצים נשמרו בתיק של ' + chosen.name + ', בתיקייה "' + r.folder + '"', true);
+    files = []; drawThumbs(); $('#tx').value = ''; choose(null);
+  } catch (e) {
+    note(/fetch|network/i.test(String(e.message)) ? 'אין חיבור לאינטרנט. הקבצים לא נשמרו, אפשר לנסות שוב.' : 'שגיאה: ' + e.message);
+  }
+  b.disabled = false; b.textContent = '📁 הוספה לתיק';
+}
 
 $('#keysave').onclick = () => { KEY = $('#keyin').value.trim(); ls.set('key', KEY); $('#setup').hidden = true; loadClients(); };
 
