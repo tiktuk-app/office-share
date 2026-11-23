@@ -86,7 +86,7 @@ textarea{min-height:110px;resize:vertical}
 
 <script>
 /* כתובת ה-API של האפליקציה (Apps Script). המפתח לא כאן: הוא נשמר רק בטלפון. */
-const API = '__API_URL__';
+const API = 'https://script.google.com/macros/s/AKfycby6YZOwukSAgZgOnqmi7R7pNQXNoy9XA0usMSQkHZ2x622cz5D_uqoWPqpc4S_XAiaL/exec';
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
