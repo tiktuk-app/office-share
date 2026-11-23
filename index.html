@@ -187,8 +187,8 @@ async function takeShared() {
   const all = await new Promise(res => { const q = d.transaction('inbox').objectStore('inbox').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
   if (!all.length) return;
   const text = all.map(x => [x.title, x.text, x.url].filter(Boolean).join('\n')).filter(Boolean).join('\n\n');
-  if (text) $('#tx').value = text;
   const blobs = []; all.forEach(x => x.files.forEach(f => blobs.push(new File([f.blob], f.name || 'image.jpg', { type: f.type || f.blob.type }))));
+  if (text && !blobs.length) $('#tx').value = text;
   if (blobs.length) await addFiles(blobs);
   sharedId = all.map(x => x.id);
   const g = guess(text); if (g) choose(g);
