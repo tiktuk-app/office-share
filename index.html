@@ -77,9 +77,9 @@ textarea{min-height:110px;resize:vertical}
   </div>
 
   <div class="box">
-    <span class="l">צילומי מסך ותמונות</span>
+    <span class="l">צילומי מסך, תמונות וסרטונים</span>
     <button class="btn sm" id="add">📷 הוספה מהגלריה</button>
-    <input type="file" id="pick" accept="image/*,application/pdf" multiple hidden>
+    <input type="file" id="pick" accept="image/*,video/*,application/pdf" multiple hidden>
     <div class="thumbs" id="thumbs"></div>
   </div>
 
@@ -117,6 +117,7 @@ async function api(body) {
   return j;
 }
 
+const MAXB = 35 * 1048576;
 const digits = s => String(s || '').replace(/\D/g, '');
 const norm = s => String(s || '').replace(/[\s\-"'״׳]/g, '');
 function matches(c, q) {
@@ -153,7 +154,8 @@ function readImg(f) {
   return new Promise((res, rej) => {
     if ((f.type || '').indexOf('image/') !== 0) {
       const r = new FileReader();
-      r.onload = () => res({ name: f.name, mime: f.type || 'application/pdf', data: String(r.result).split(',')[1], prev: '' });
+      if (f.size > MAXB) { rej(new Error('הקובץ ' + (f.name || '') + ' גדול מדי (' + Math.round(f.size / 1048576) + ' MB). אפשר עד ' + Math.round(MAXB / 1048576) + ' MB.')); return; }
+      r.onload = () => res({ name: f.name, mime: f.type || 'application/pdf', size: f.size, data: String(r.result).split(',')[1], prev: '' });
       r.onerror = rej; r.readAsDataURL(f); return;
     }
     const img = new Image(), u = URL.createObjectURL(f);
@@ -168,10 +170,14 @@ function readImg(f) {
   });
 }
 function drawThumbs() {
-  $('#thumbs').innerHTML = files.map((f, i) => '<div class="th">' + (f.prev ? '<img src="' + f.prev + '" alt="">' : '<div class="doc">📄 ' + esc(f.name) + '</div>') + '<button data-x="' + i + '" aria-label="הסרה">✕</button></div>').join('');
+  $('#thumbs').innerHTML = files.map((f, i) => '<div class="th">' + (f.prev ? '<img src="' + f.prev + '" alt="">' : '<div class="doc">' + (/^video/.test(f.mime) ? '🎬 ' : '📄 ') + esc(f.name) + '</div>') + '<button data-x="' + i + '" aria-label="הסרה">✕</button></div>').join('');
   document.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { files.splice(+b.dataset.x, 1); drawThumbs(); });
 }
-async function addFiles(list) { const L = await Promise.all([].slice.call(list).map(readImg)); files = files.concat(L); drawThumbs(); }
+async function addFiles(list) {
+  const R = await Promise.allSettled([].slice.call(list).map(readImg));
+  files = files.concat(R.filter(x => x.status === 'fulfilled').map(x => x.value)); drawThumbs();
+  const bad = R.filter(x => x.status === 'rejected'); if (bad.length) note(bad[0].reason.message);
+}
 $('#add').onclick = () => { const p = $('#pick'); p.value = ''; p.click(); };
 $('#pick').onchange = e => addFiles(e.target.files);
 
@@ -239,7 +245,13 @@ async function toFolder(f) {
   $('#fl').hidden = true;
   const b = $('#tofolder'); b.disabled = true; b.textContent = 'מעלה…';
   try {
-    const r = await api({ op: 'file', client: chosen.name, folderId: f.id, desc: $('#tx').value.trim(), files: files.map(x => ({ mime: x.mime, data: x.data })) });
+    const desc = $('#tx').value.trim(); let n = 0, folder = '';
+    for (let i = 0; i < files.length; i++) {
+      b.textContent = 'מעלה ' + (i + 1) + ' מתוך ' + files.length + '…';
+      const r = await api({ op: 'file', client: chosen.name, folderId: f.id, desc: desc + (files.length > 1 ? ' (' + (i + 1) + ')' : ''), files: [{ mime: files[i].mime, data: files[i].data }] });
+      n += r.files; folder = r.folder;
+    }
+    const r = { files: n, folder: folder };
     await clearShared();
     note('✓ ' + r.files + ' קבצים נשמרו בתיק של ' + chosen.name + ', בתיקייה "' + r.folder + '"', true);
     files = []; drawThumbs(); $('#tx').value = ''; choose(null);

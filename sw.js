@@ -1,5 +1,5 @@
 /* משימה למשרד: מקבל שיתוף מהטלפון ושומר אותו עד שהמסך נפתח */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 function db() {
@@ -40,7 +40,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (e.request.method === 'GET' && u.origin === location.origin) {
-    e.respondWith(fetch(e.request).then(r => {
+    e.respondWith(fetch(e.request.url, { cache: 'no-cache' }).then(r => {
       const copy = r.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true })));
   }
