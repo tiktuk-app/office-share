@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1f4e8c">
+<title>משימה למשרד</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#eef1f6;--card:#fff;--ink:#17233a;--muted:#5f6b80;--line:#dde3ec;--soft:#f4f6fa;--accent:#1f4e8c;--accent-soft:#e4ecf8;--red:#b8322a;--red-soft:#fbe9e7;--green:#1b7a46;--green-soft:#e3f4ea}
+*{box-sizing:border-box}
+html,body{direction:rtl;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"Assistant","Rubik",Arial,sans-serif;font-size:17px;line-height:1.45}
+header{background:var(--accent);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
+header h1{font-size:20px;margin:0}
+main{padding:14px 16px 110px;display:grid;gap:14px;max-width:640px;margin:0 auto}
+.box{background:var(--card);border-radius:16px;padding:14px}
+.l{font-size:14px;color:var(--muted);display:block;margin-bottom:6px}
+input.q,textarea{width:100%;font:inherit;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink)}
+textarea{min-height:110px;resize:vertical}
+.list{max-height:300px;overflow:auto;margin-top:8px;border-radius:12px;border:1px solid var(--line)}
+.cl{display:flex;justify-content:space-between;gap:8px;padding:12px;border-bottom:1px solid var(--line);cursor:pointer}
+.cl:last-child{border-bottom:none}
+.cl .s{color:var(--muted);font-size:14px}
+.cl.on{background:var(--accent-soft);font-weight:700}
+.chosen{display:flex;align-items:center;gap:10px;background:var(--accent-soft);border-radius:12px;padding:12px;font-weight:700}
+.chosen button{margin-inline-start:auto}
+.btn{border:none;border-radius:12px;padding:11px 16px;font:inherit;font-weight:600;cursor:pointer;background:var(--soft);color:var(--ink)}
+.btn.pri{background:var(--accent);color:#fff}
+.btn.sm{padding:7px 12px;font-size:15px}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.th{position:relative}
+.th img{height:86px;border-radius:10px;display:block}
+.th .doc{height:86px;display:flex;align-items:center;padding:0 10px;background:var(--soft);border-radius:10px;font-size:14px}
+.th button{position:absolute;top:-6px;left:-6px;width:26px;height:26px;border-radius:50%;border:none;background:var(--ink);color:#fff;font-size:14px;cursor:pointer}
+.seg{display:flex;gap:8px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:8px 16px;font:inherit;font-size:15px;cursor:pointer}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chip.on.u{background:var(--red);border-color:var(--red)}
+.bar{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px}
+.bar .pri{flex:1;font-size:18px;padding:14px}
+.msg{border-radius:12px;padding:12px}
+.msg.ok{background:var(--green-soft);color:var(--green)}
+.msg.err{background:var(--red-soft);color:var(--red)}
+.muted{color:var(--muted);font-size:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header><h1>＋ משימה למשרד</h1></header>
+<main>
+  <div id="setup" class="box" hidden>
+    <b>צריך לחבר את המסך לאפליקציית המשרד</b>
+    <p class="muted">פותחים פעם אחת את קישור החיבור ששלחתי, או מדביקים כאן את המפתח.</p>
+    <input class="q" id="keyin" placeholder="מפתח" autocomplete="off" dir="ltr">
+    <button class="btn pri" id="keysave" style="margin-top:8px">חיבור</button>
+  </div>
+
+  <div id="note" class="msg" hidden></div>
+
+  <div class="box">
+    <span class="l">לקוח</span>
+    <div id="chosen" class="chosen" hidden><span id="chosenName"></span><button class="btn sm" id="change">החלפה</button></div>
+    <div id="picker">
+      <input class="q" id="q" placeholder="חיפוש לפי שם, טלפון או מספר תיק" autocomplete="off">
+      <div class="list" id="list"><div class="cl"><span class="muted">טוען לקוחות…</span></div></div>
+    </div>
+  </div>
+
+  <div class="box">
+    <label class="l" for="tx">מה צריך לעשות</label>
+    <textarea id="tx" placeholder="אפשר לכתוב חופשי"></textarea>
+  </div>
+
+  <div class="box">
+    <span class="l">צילומי מסך ותמונות</span>
+    <button class="btn sm" id="add">📷 הוספה מהגלריה</button>
+    <input type="file" id="pick" accept="image/*,application/pdf" multiple hidden>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <div class="seg"><button class="chip u" data-u="1">דחוף</button><button class="chip on" data-u="0">רגיל</button></div>
+</main>
+<div class="bar"><button class="btn pri" id="save">שמירת המשימה</button></div>
+
+<script>
+/* כתובת ה-API של האפליקציה (Apps Script). המפתח לא כאן: הוא נשמר רק בטלפון. */
+const API = '__API_URL__';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+let KEY = ls.get('key', '');
+let clients = ls.get('clients', []);
+let chosen = null, files = [], urgent = false, sharedId = null;
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+
+/* קישור חיבור: #k=המפתח. נשמר בטלפון ונמחק מהכתובת. */
+(function () {
+  const m = location.hash.match(/k=([A-Za-z0-9_-]+)/);
+  if (m) { KEY = m[1]; ls.set('key', KEY); history.replaceState(null, '', location.pathname + location.search); }
+})();
+
+function note(t, ok) { const n = $('#note'); n.hidden = !t; n.className = 'msg ' + (ok ? 'ok' : 'err'); n.textContent = t || ''; }
+
+async function api(body) {
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: KEY }, body)) });
+  const j = await r.json();
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+const digits = s => String(s || '').replace(/\D/g, '');
+const norm = s => String(s || '').replace(/[\s\-"'״׳]/g, '');
+function matches(c, q) {
+  q = q.trim(); if (!q) return true;
+  const d = digits(q);
+  return c.name.indexOf(q) >= 0 || (d.length >= 4 && (digits(c.phone).indexOf(d.replace(/^972/, '0')) >= 0 || digits(c.phone).indexOf(d.slice(-9)) >= 0))
+    || (c.cases || []).some(k => norm(k).indexOf(norm(q)) >= 0);
+}
+function drawList() {
+  const q = $('#q').value;
+  const L = clients.filter(c => matches(c, q));
+  $('#list').innerHTML = L.length ? L.slice(0, 60).map((c, i) => '<div class="cl" data-i="' + clients.indexOf(c) + '"><span>' + esc(c.name) + '</span><span class="s">' + esc((c.cases || [])[0] || '') + '</span></div>').join('')
+    : '<div class="cl"><span class="muted">' + (clients.length ? 'לא נמצא. אפשר לשמור בלי לקוח.' : 'אין רשימת לקוחות עדיין') + '</span></div>';
+  document.querySelectorAll('.cl[data-i]').forEach(e => e.onclick = () => choose(clients[+e.dataset.i]));
+}
+function choose(c) {
+  chosen = c;
+  $('#chosen').hidden = !c; $('#picker').hidden = !!c;
+  if (c) $('#chosenName').textContent = c.name;
+  else { $('#q').value = ''; drawList(); $('#q').focus(); }
+}
+$('#change').onclick = () => choose(null);
+$('#q').oninput = drawList;
+
+/* ניחוש לקוח מהטקסט המשותף: טלפון או שם */
+function guess(text) {
+  const nums = (text.match(/(\+?972|0)[\d\- ]{8,12}/g) || []).map(n => digits(n).slice(-9));
+  let hit = clients.filter(c => nums.some(n => n.length === 9 && digits(c.phone).slice(-9) === n));
+  if (hit.length !== 1) hit = clients.filter(c => c.name && text.indexOf(c.name) >= 0);
+  return hit.length === 1 ? hit[0] : null;
+}
+
+function readImg(f) {
+  return new Promise((res, rej) => {
+    if ((f.type || '').indexOf('image/') !== 0) {
+      const r = new FileReader();
+      r.onload = () => res({ name: f.name, mime: f.type || 'application/pdf', data: String(r.result).split(',')[1], prev: '' });
+      r.onerror = rej; r.readAsDataURL(f); return;
+    }
+    const img = new Image(), u = URL.createObjectURL(f);
+    img.onload = () => {
+      const k = Math.min(1, 1800 / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(u);
+      const du = cv.toDataURL('image/jpeg', 0.82);
+      res({ name: f.name, mime: 'image/jpeg', data: du.split(',')[1], prev: du });
+    };
+    img.onerror = rej; img.src = u;
+  });
+}
+function drawThumbs() {
+  $('#thumbs').innerHTML = files.map((f, i) => '<div class="th">' + (f.prev ? '<img src="' + f.prev + '" alt="">' : '<div class="doc">📄 ' + esc(f.name) + '</div>') + '<button data-x="' + i + '" aria-label="הסרה">✕</button></div>').join('');
+  document.querySelectorAll('[data-x]').forEach(b => b.onclick = () => { files.splice(+b.dataset.x, 1); drawThumbs(); });
+}
+async function addFiles(list) { const L = await Promise.all([].slice.call(list).map(readImg)); files = files.concat(L); drawThumbs(); }
+$('#add').onclick = () => { const p = $('#pick'); p.value = ''; p.click(); };
+$('#pick').onchange = e => addFiles(e.target.files);
+
+document.querySelectorAll('[data-u]').forEach(b => b.onclick = () => {
+  urgent = b.dataset.u === '1';
+  document.querySelectorAll('[data-u]').forEach(x => x.classList.toggle('on', x === b));
+});
+
+/* מה ששותף מווטסאפ */
+function idb() {
+  return new Promise((res, rej) => { const r = indexedDB.open('office-share', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('inbox', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+}
+async function takeShared() {
+  const d = await idb();
+  const all = await new Promise(res => { const q = d.transaction('inbox').objectStore('inbox').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
+  if (!all.length) return;
+  const text = all.map(x => [x.title, x.text, x.url].filter(Boolean).join('\n')).filter(Boolean).join('\n\n');
+  if (text) $('#tx').value = text;
+  const blobs = []; all.forEach(x => x.files.forEach(f => blobs.push(new File([f.blob], f.name || 'image.jpg', { type: f.type || f.blob.type }))));
+  if (blobs.length) await addFiles(blobs);
+  sharedId = all.map(x => x.id);
+  const g = guess(text); if (g) choose(g);
+}
+async function clearShared() {
+  if (!sharedId) return; const d = await idb();
+  await new Promise(res => { const tx = d.transaction('inbox', 'readwrite'); sharedId.forEach(id => tx.objectStore('inbox').delete(id)); tx.oncomplete = res; tx.onerror = res; });
+  sharedId = null;
+}
+
+$('#save').onclick = async () => {
+  const text = $('#tx').value.trim();
+  if (!text && !files.length) { note('צריך לכתוב משהו או לצרף תמונה'); return; }
+  if (!KEY) { $('#setup').hidden = false; note('המסך עוד לא מחובר'); return; }
+  const b = $('#save'); b.disabled = true; b.textContent = files.length ? 'מעלה ' + files.length + ' קבצים…' : 'שומר…';
+  try {
+    await api({ op: 'task', client: chosen ? chosen.name : '', caseLabel: chosen && chosen.cases ? (chosen.cases[0] || '') : '', text: text || 'לטפל (ראי צילומי מסך)', urgent: urgent,
+      files: files.map(f => ({ mime: f.mime, data: f.data })) });
+    await clearShared();
+    note('✓ המשימה נשמרה' + (chosen ? ' אצל ' + chosen.name : '') + (files.length ? ', עם ' + files.length + ' קבצים בתיק' : ''), true);
+    files = []; drawThumbs(); $('#tx').value = ''; choose(null);
+    b.textContent = 'שמירת המשימה'; b.disabled = false;
+  } catch (e) {
+    b.disabled = false; b.textContent = 'שמירת המשימה';
+    note(/fetch|network/i.test(String(e.message)) ? 'אין חיבור לאינטרנט. המשימה לא נשמרה, אפשר לנסות שוב.' : 'שגיאה: ' + e.message);
+  }
+};
+
+$('#keysave').onclick = () => { KEY = $('#keyin').value.trim(); ls.set('key', KEY); $('#setup').hidden = true; loadClients(); };
+
+async function loadClients() {
+  drawList();
+  if (!KEY) { $('#setup').hidden = false; return; }
+  try {
+    const r = await api({ op: 'clients' });
+    clients = r.clients; ls.set('clients', clients); drawList();
+    if (!chosen) { const g = guess($('#tx').value); if (g) choose(g); }
+  } catch (e) {
+    if (/מפתח/.test(e.message)) { $('#setup').hidden = false; note(e.message); }
+    else if (!clients.length) note('לא הצלחתי לטעון את רשימת הלקוחות');
+  }
+}
+
+(async () => { drawList(); await takeShared().catch(() => {}); loadClients(); })();
+</script>
+</body>
+</html>
