@@ -1,5 +1,5 @@
 /* משימה למשרד: מקבל שיתוף מהטלפון ושומר אותו עד שהמסך נפתח */
-const VERSION = 'v5';
+const VERSION = 'v6';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 function db() {
@@ -14,7 +14,7 @@ async function put(item) {
   const d = await db();
   await new Promise((res, rej) => {
     const tx = d.transaction('inbox', 'readwrite');
-    tx.objectStore('inbox').put(item);
+    const st = tx.objectStore('inbox'); st.clear(); st.put(item);
     tx.oncomplete = res; tx.onerror = () => rej(tx.error);
   });
 }

@@ -194,13 +194,20 @@ function idb() {
 }
 async function takeShared() {
   const d = await idb();
-  const all = await new Promise(res => { const q = d.transaction('inbox').objectStore('inbox').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
+  let all = await new Promise(res => { const q = d.transaction('inbox').objectStore('inbox').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => res([]); });
   if (!all.length) return;
+  /* רק השיתוף הנוכחי. שיתופים ישנים שלא נשמרו נמחקים. */
+  const want = +(new URLSearchParams(location.search).get('shared') || 0);
+  const last = all.filter(x => x.id === want)[0];
+  await new Promise(res => { const tx = d.transaction('inbox', 'readwrite'); all.forEach(x => { if (x !== last) tx.objectStore('inbox').delete(x.id); }); tx.oncomplete = res; tx.onerror = res; });
+  if (!last) return;
+  all = [last];
   const text = all.map(x => [x.title, x.text, x.url].filter(Boolean).join('\n')).filter(Boolean).join('\n\n');
   const blobs = []; all.forEach(x => x.files.forEach(f => blobs.push(new File([f.blob], f.name || 'image.jpg', { type: f.type || f.blob.type }))));
   if (text && !blobs.length) $('#tx').value = text;
   if (blobs.length) await addFiles(blobs);
   sharedId = all.map(x => x.id);
+  if (location.search) history.replaceState(null, '', location.pathname);
   const g = guess(text); if (g) choose(g);
 }
 async function clearShared() {
